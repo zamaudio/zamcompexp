@@ -145,11 +145,19 @@ is_nan(float& value ) {
 return false;
 }
 
+static inline bool
+is_large(float& value) {
+	return (value > 160.f);
+}
+
 // Force already-denormal float value to zero
 static inline void
 sanitize_denormal(float& value) {
 	if (is_nan(value)) {
 		value = 0.f;
+	}
+	if (is_large(value)) {
+		value = 160.f;
 	}
 }
 
@@ -191,14 +199,7 @@ run(LV2_Handle instance, uint32_t n_samples)
 	}
 	
 	float cthresholdb = *(zamcomp->cthreshold);
-	
-	float eslope = 0.f;
-	if (*(zamcomp->eratio) == 0.f) {
-		eslope = -10000;
-	} else {
-		eslope = 1.f - 1/(*(zamcomp->eratio));
-	}
-	
+	float eslope = 1.f - *(zamcomp->eratio);
 	float ethresholdb = *(zamcomp->ethreshold);
 	float makeup = from_dB(*(zamcomp->makeup));
 	float* const gainr_l =  zamcomp->gainr_l;
@@ -220,8 +221,8 @@ run(LV2_Handle instance, uint32_t n_samples)
  
 	for (uint32_t i = 0; i < n_samples; ++i) {
 		Lyg = Ryg = 0.f;
-		Lxg = (input_l[i]==0.f) ? -160.f : to_dB(fabs(input_l[i]));
-		Rxg = (input_r[i]==0.f) ? -160.f : to_dB(fabs(input_r[i]));
+		Lxg = (input_l[i]==0.f) ? -160.f : to_dB(fabsf(input_l[i]));
+		Rxg = (input_r[i]==0.f) ? -160.f : to_dB(fabsf(input_r[i]));
 		sanitize_denormal(Lxg);
 		sanitize_denormal(Rxg);
     
@@ -259,11 +260,10 @@ run(LV2_Handle instance, uint32_t n_samples)
 			Lxl = Rxl = (Lxg - Lyg + Rxg - Ryg) / 2.f;
 		}
 
-		sanitize_denormal(zamcomp->oldL_y1);
-		sanitize_denormal(zamcomp->oldR_y1);
-		sanitize_denormal(zamcomp->oldL_yl);
-		sanitize_denormal(zamcomp->oldR_yl);
-
+//		sanitize_denormal(zamcomp->oldL_y1);
+//		sanitize_denormal(zamcomp->oldR_y1);
+//		sanitize_denormal(zamcomp->oldL_yl);
+//		sanitize_denormal(zamcomp->oldR_yl);
 
 		Ly1 = fmaxf(Lxl, release_coeff * zamcomp->oldL_y1+(1.f-release_coeff)*Lxl);
 		Lyl = attack_coeff * zamcomp->oldL_yl+(1.f-attack_coeff)*Ly1;
